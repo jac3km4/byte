@@ -19,6 +19,7 @@ quickcheck = "0.3"
 byteorder = "1.0.0"
 
 [features]
+alloc = []
 derive = ["dep:byte_derive"]
 
 [dependencies]
