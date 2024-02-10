@@ -13,8 +13,7 @@ fn impl_struct_read(
     let mut lifetimes = generics.lifetimes();
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
-    let mut generics = generics.clone();
-
+    let mut generics = generics_with_ctx(generics);
     // use the first lifetime parameter as the input lifetime if there is one
     // otherwise create a new lifetime parameter and add it to the generics
     let input_lt = if let Some(lt) = lifetimes.next() {
@@ -23,8 +22,7 @@ fn impl_struct_read(
         let lt = syn::LifetimeParam::new(syn::Lifetime::new("'input", generics.span()));
         generics
             .params
-            .push_value(syn::GenericParam::Lifetime(lt.clone()));
-        generics.params.push_punct(syn::Token![,](generics.span()));
+            .push(syn::GenericParam::Lifetime(lt.clone()));
         lt
     };
     let (impl_generics, _, _) = generics.split_for_impl();
@@ -35,9 +33,9 @@ fn impl_struct_read(
         syn::Fields::Unit => {
             // no fields, so no bytes to read
             return quote::quote! {
-                impl #impl_generics ::byte::TryRead<#input_lt, ::byte::ctx::Endian> for #name #ty_generics #where_clause {
+                impl #impl_generics ::byte::TryRead<#input_lt, __Ctx> for #name #ty_generics #where_clause {
                     #[inline]
-                    fn try_read(bytes: & #input_lt [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<(Self, usize)> {
+                    fn try_read(bytes: & #input_lt [u8], ctx: __Ctx) -> ::byte::Result<(Self, usize)> {
                         Ok((Self, 0))
                     }
                 }
@@ -82,10 +80,14 @@ fn impl_struct_read(
         syn::Fields::Unnamed(_) => quote::quote!(Self( #(#field_names),* )),
         syn::Fields::Unit => unreachable!(),
     };
+    let predicates = where_clause.map(|w| &w.predicates);
 
     quote::quote! {
-        impl #impl_generics ::byte::TryRead<#input_lt, ::byte::ctx::Endian> for #name #ty_generics #where_clause {
-            fn try_read(bytes: & #input_lt [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<(Self, usize)> {
+        impl #impl_generics ::byte::TryRead<#input_lt, __Ctx> for #name #ty_generics
+            where
+                __Ctx: ::byte::ctx::Endianess,
+                #predicates {
+            fn try_read(bytes: & #input_lt [u8], ctx: __Ctx) -> ::byte::Result<(Self, usize)> {
                 let mut offset = &mut 0;
                 #(#field_reads)*
                 Ok((#result, *offset))
@@ -99,7 +101,10 @@ fn impl_struct_write(
     struct_fields: &syn::Fields,
     generics: &syn::Generics,
 ) -> proc_macro2::TokenStream {
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+
+    let generics = generics_with_ctx(generics);
+    let (impl_generics, _, _) = generics.split_for_impl();
 
     let fields = match struct_fields {
         syn::Fields::Named(fields) => &fields.named,
@@ -107,9 +112,9 @@ fn impl_struct_write(
         syn::Fields::Unit => {
             // no fields, so no bytes to read
             return quote::quote! {
-                impl #impl_generics ::byte::TryWrite<::byte::ctx::Endian> for #name #ty_generics #where_clause {
+                impl #impl_generics ::byte::TryWrite<__Ctx> for #name #ty_generics #where_clause {
                     #[inline]
-                    fn try_write(&self, bytes: &mut [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<usize> {
+                    fn try_write(&self, bytes: &mut [u8], ctx: __Ctx) -> ::byte::Result<usize> {
                         Ok(0)
                     }
                 }
@@ -149,10 +154,14 @@ fn impl_struct_write(
         }),
         syn::Fields::Unit => unreachable!(),
     };
+    let predicates = where_clause.map(|w| &w.predicates);
 
     quote::quote! {
-        impl #impl_generics ::byte::TryWrite<::byte::ctx::Endian> for #name #ty_generics #where_clause {
-            fn try_write(&self, bytes: &mut [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<usize> {
+        impl #impl_generics ::byte::TryWrite<__Ctx> for #name #ty_generics
+            where
+                __Ctx: ::byte::ctx::Endianess,
+                #predicates {
+            fn try_write(&self, bytes: &mut [u8], ctx: __Ctx) -> ::byte::Result<usize> {
                 let mut offset = &mut 0;
                 #extract_fields
                 #(#field_writes)*
@@ -167,7 +176,10 @@ fn impl_struct_measure(
     struct_fields: &syn::Fields,
     generics: &syn::Generics,
 ) -> proc_macro2::TokenStream {
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+
+    let generics = generics_with_ctx(generics);
+    let (impl_generics, _, _) = generics.split_for_impl();
 
     let fields = match struct_fields {
         syn::Fields::Named(fields) => &fields.named,
@@ -175,7 +187,7 @@ fn impl_struct_measure(
         syn::Fields::Unit => {
             // no fields, so no bytes to read
             return quote::quote! {
-                impl #impl_generics ::byte::Measure<::byte::ctx::Endian> for #name #ty_generics #where_clause {
+                impl #impl_generics ::byte::Measure<__Ctx> for #name #ty_generics #where_clause {
                     #[inline]
                     fn measure(&self, _: Ctx) -> usize {
                         0
@@ -217,10 +229,14 @@ fn impl_struct_measure(
         }),
         syn::Fields::Unit => unreachable!(),
     };
+    let predicates = where_clause.map(|w| &w.predicates);
 
     quote::quote! {
-        impl #impl_generics ::byte::Measure<::byte::ctx::Endian> for #name #ty_generics #where_clause {
-            fn measure(&self, ctx: ::byte::ctx::Endian) -> usize {
+        impl #impl_generics ::byte::Measure<__Ctx> for #name #ty_generics
+            where
+                __Ctx: ::byte::ctx::Endianess,
+                #predicates {
+            fn measure(&self, ctx: __Ctx) -> usize {
                 #extract_fields
                 0 #(+ #field_sizes)*
             }
@@ -271,6 +287,16 @@ pub fn derive_measure(input: proc_macro::TokenStream) -> proc_macro::TokenStream
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let gen = impl_measure(&ast);
     gen.into()
+}
+
+fn generics_with_ctx(generics: &syn::Generics) -> syn::Generics {
+    let mut generics = generics.clone();
+    generics
+        .params
+        .push(syn::GenericParam::Type(syn::TypeParam::from(
+            syn::Ident::new("__Ctx", generics.span()),
+        )));
+    generics
 }
 
 fn parse_field_attrs(attr: &syn::Attribute) -> Result<FieldAttributes, syn::Error> {

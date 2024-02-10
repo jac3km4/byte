@@ -1,5 +1,5 @@
 use byte::{
-    ctx::{Str, NONE},
+    ctx::{Delimiter, Len, NONE},
     Measure, TryRead, TryWrite, LE,
 };
 
@@ -7,7 +7,7 @@ use byte::{
 struct Named<'a> {
     id: u32,
     timestamp: f64,
-    #[byte(read_ctx = Str::Delimiter(0), write_ctx = NONE)]
+    #[byte(read_ctx = Delimiter(0), write_ctx = NONE)]
     str: &'a str,
 }
 
@@ -45,7 +45,7 @@ fn test_no_lifetime_struct() {
 #[derive(Debug, Clone, PartialEq, TryWrite, TryRead)]
 struct FieldDependent<'a> {
     len: usize,
-    #[byte(read_ctx = Str::Len(len), write_ctx = NONE)]
+    #[byte(read_ctx = Len(len), write_ctx = NONE)]
     str: &'a str,
 }
 
@@ -67,7 +67,7 @@ fn test_len_dependent() {
 struct Tuple<'a>(
     u32,
     f64,
-    #[byte(read_ctx = Str::Delimiter(0), write_ctx = NONE)] &'a str,
+    #[byte(read_ctx = Delimiter(0), write_ctx = NONE)] &'a str,
 );
 
 #[test]
