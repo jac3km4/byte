@@ -56,7 +56,7 @@ fn bench_example_write(b: &mut test::Bencher) {
             name: "HELLO",
             enabled: false,
         });
-        bytes.write_with::<Header>(&mut 0, header, BE).unwrap()
+        bytes.write_with::<Header>(&mut 0, &header, BE).unwrap()
     });
     b.bytes = 8;
 }
@@ -130,12 +130,12 @@ impl<'a> TryRead<'a, Endian> for Header<'a> {
 }
 
 impl<'a> TryWrite<Endian> for Header<'a> {
-    fn try_write(self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
+    fn try_write(&self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
         let offset = &mut 0;
 
-        bytes.write_with(offset, self.name.len() as u16, endian)?;
+        bytes.write_with(offset, &(self.name.len() as u16), endian)?;
         bytes.write(offset, self.name)?;
-        bytes.write(offset, self.enabled)?;
+        bytes.write(offset, &self.enabled)?;
 
         Ok(*offset)
     }

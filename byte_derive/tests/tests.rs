@@ -19,7 +19,7 @@ fn test_named_struct() {
         str: "hello",
     };
     let buf = &mut [0; 18];
-    data.clone().try_write(buf, LE).unwrap();
+    data.try_write(buf, LE).unwrap();
     assert_eq!(Ok((data, 18)), Named::try_read(buf, LE));
 }
 
@@ -36,7 +36,7 @@ fn test_no_lifetime_struct() {
         timestamp: 1234.5678,
     };
     let buf = &mut [0; 12];
-    data.clone().try_write(buf, LE).unwrap();
+    data.try_write(buf, LE).unwrap();
     assert_eq!(Ok((data, 12)), NoLifetime::try_read(buf, LE));
 }
 
@@ -54,7 +54,7 @@ fn test_len_dependent() {
         str: "hello",
     };
     let buf = &mut [0; 13];
-    data.clone().try_write(buf, LE).unwrap();
+    data.try_write(buf, LE).unwrap();
     assert_eq!(
         Ok((FieldDependent { len: 2, str: "he" }, 10)),
         FieldDependent::try_read(buf, LE)
@@ -72,7 +72,7 @@ struct Tuple<'a>(
 fn test_tuple_struct() {
     let data: Tuple = Tuple(0x12345678, 1234.5678, "hello");
     let buf = &mut [0; 18];
-    data.clone().try_write(buf, LE).unwrap();
+    data.try_write(buf, LE).unwrap();
     assert_eq!(Ok((data, 18)), Tuple::try_read(buf, LE));
 }
 
@@ -83,6 +83,6 @@ struct Empty;
 fn test_empty_struct() {
     let data: Empty = Empty;
     let buf = &mut [0; 0];
-    data.clone().try_write(buf, LE).unwrap();
+    data.try_write(buf, LE).unwrap();
     assert_eq!(Ok((data, 0)), Empty::try_read(buf, LE));
 }

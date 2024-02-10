@@ -11,10 +11,10 @@ impl<'a> TryRead<'a> for bool {
 
 impl TryWrite for bool {
     #[inline]
-    fn try_write(self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
+    fn try_write(&self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
         check_len(bytes, 1)?;
 
-        bytes[0] = if self { u8::max_value() } else { 0 };
+        bytes[0] = if *self { u8::max_value() } else { 0 };
 
         Ok(1)
     }

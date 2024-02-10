@@ -226,8 +226,8 @@ fn test_bool() {
     assert_eq!(bytes.read::<bool>(&mut 3).unwrap(), true);
 
     let mut bytes = [0u8; 2];
-    bytes.write(&mut 0, false).unwrap();
-    bytes.write(&mut 1, true).unwrap();
+    bytes.write(&mut 0, &false).unwrap();
+    bytes.write(&mut 1, &true).unwrap();
     assert!(bytes[0] == 0);
     assert!(bytes[1] != 0);
 }
@@ -252,7 +252,7 @@ macro_rules! test_num {
         quickcheck! {
             fn $test_name (num: $ty) -> () {
                 let mut bytes = [0u8; 8];
-                bytes.write_with(&mut 0, num, LE).unwrap();
+                bytes.write_with(&mut 0, &num, LE).unwrap();
                 let result = LittleEndian::$byteorder_read_fn(&bytes);
                 assert_eq!(result, num);
 
@@ -262,7 +262,7 @@ macro_rules! test_num {
                 assert_eq!(result, num);
 
                 let mut bytes = [0u8; 8];
-                bytes.write_with(&mut 0, num, BE).unwrap();
+                bytes.write_with(&mut 0, &num, BE).unwrap();
                 let result = BigEndian::$byteorder_read_fn(&bytes);
                 assert_eq!(result, num);
 
@@ -304,12 +304,12 @@ impl<'a> TryRead<'a, Endian> for Header<'a> {
 }
 
 impl<'a> TryWrite<Endian> for Header<'a> {
-    fn try_write(self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
+    fn try_write(&self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
         let offset = &mut 0;
 
-        bytes.write_with(offset, self.name.len() as u16, endian)?;
+        bytes.write_with(offset, &(self.name.len() as u16), endian)?;
         bytes.write(offset, self.name)?;
-        bytes.write(offset, self.enabled)?;
+        bytes.write(offset, &self.enabled)?;
 
         Ok(*offset)
     }
@@ -324,7 +324,7 @@ fn test_api() {
     assert_eq!(header.enabled, false);
 
     let mut write = [0u8; 8];
-    write.write_with(&mut 0, header, BE).unwrap();
+    write.write_with(&mut 0, &header, BE).unwrap();
     assert_eq!(write, bytes);
 }
 
@@ -338,7 +338,7 @@ impl<'a> TryRead<'a, ()> for Empty {
 }
 
 impl TryWrite<()> for Empty {
-    fn try_write(self, _bytes: &mut [u8], _ctx: ()) -> Result<usize> {
+    fn try_write(&self, _bytes: &mut [u8], _ctx: ()) -> Result<usize> {
         Ok(0)
     }
 }
@@ -359,13 +359,13 @@ fn test_empty() {
 
     let mut write_empty_bytes: [u8; 0] = [];
     let mut offset = 0;
-    write_empty_bytes.write(&mut offset, Empty).unwrap();
+    write_empty_bytes.write(&mut offset, &Empty).unwrap();
     assert_eq!(write_empty_bytes, empty_bytes);
     assert_eq!(offset, 0);
 
     let mut write_zero_bytes = [0u8; 4];
     let mut offset = 0;
-    write_zero_bytes.write(&mut offset, Empty).unwrap();
+    write_zero_bytes.write(&mut offset, &Empty).unwrap();
     assert_eq!(write_zero_bytes, [0u8; 4]);
     assert_eq!(offset, 0);
 }

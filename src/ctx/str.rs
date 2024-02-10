@@ -87,9 +87,9 @@ impl<'a> TryRead<'a, Str> for &'a str {
     }
 }
 
-impl<'a> TryWrite for &'a str {
+impl TryWrite for str {
     #[inline]
-    fn try_write(self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
+    fn try_write(&self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
         let str_bytes = self.as_bytes();
 
         check_len(bytes, str_bytes.len())?;

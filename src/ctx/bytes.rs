@@ -76,9 +76,9 @@ impl<'a> TryRead<'a, Bytes> for &'a [u8] {
     }
 }
 
-impl<'a> TryWrite for &'a [u8] {
+impl TryWrite for [u8] {
     #[inline]
-    fn try_write(self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
+    fn try_write(&self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
         check_len(bytes, self.len())?;
 
         bytes[..self.len()].clone_from_slice(self);

@@ -109,7 +109,7 @@ fn impl_struct_write(
             return quote::quote! {
                 impl #impl_generics ::byte::TryWrite<::byte::ctx::Endian> for #name #ty_generics #where_clause {
                     #[inline]
-                    fn try_write(self, bytes: &mut [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<usize> {
+                    fn try_write(&self, bytes: &mut [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<usize> {
                         Ok(0)
                     }
                 }
@@ -152,7 +152,7 @@ fn impl_struct_write(
 
     quote::quote! {
         impl #impl_generics ::byte::TryWrite<::byte::ctx::Endian> for #name #ty_generics #where_clause {
-            fn try_write(self, bytes: &mut [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<usize> {
+            fn try_write(&self, bytes: &mut [u8], ctx: ::byte::ctx::Endian) -> ::byte::Result<usize> {
                 let mut offset = &mut 0;
                 #extract_fields
                 #(#field_writes)*

@@ -99,12 +99,12 @@
 //! }
 //!
 //! impl<'a> TryWrite<Endian> for Header<'a> {
-//!     fn try_write(self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
+//!     fn try_write(&self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
 //!         let offset = &mut 0;
 //!
-//!         bytes.write_with::<u16>(offset, self.name.len() as u16, endian)?;
-//!         bytes.write::<&str>(offset, self.name)?;
-//!         bytes.write::<bool>(offset, self.enabled)?;
+//!         bytes.write_with::<u16>(offset, &(self.name.len() as u16), endian)?;
+//!         bytes.write::<str>(offset, self.name)?;
+//!         bytes.write::<bool>(offset, &self.enabled)?;
 //!
 //!         Ok(*offset)
 //!     }
@@ -232,7 +232,7 @@ pub trait TryWrite<Ctx = ()> {
     ///
     /// impl TryWrite for HasBool {
     ///     #[inline]
-    ///     fn try_write(self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
+    ///     fn try_write(&self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
     ///         check_len(bytes, 1)?;
     ///
     ///         bytes[0] = if self.0 { u8::max_value() } else { 0 };
@@ -241,7 +241,17 @@ pub trait TryWrite<Ctx = ()> {
     ///     }
     /// }
     /// ```
-    fn try_write(self, bytes: &mut [u8], ctx: Ctx) -> Result<usize>;
+    fn try_write(&self, bytes: &mut [u8], ctx: Ctx) -> Result<usize>;
+}
+
+impl<A, Ctx> TryWrite<Ctx> for &A
+where
+    A: TryWrite<Ctx> + ?Sized,
+{
+    #[inline]
+    fn try_write(&self, bytes: &mut [u8], ctx: Ctx) -> Result<usize> {
+        (*self).try_write(bytes, ctx)
+    }
 }
 
 /// Extension methods for byte slices.
@@ -327,14 +337,14 @@ pub trait BytesExt<Ctx> {
     ///
     /// let mut bytes = [0u8; 2];
     ///
-    /// bytes.write(&mut 0, false).unwrap();
-    /// bytes.write(&mut 1, true).unwrap();
+    /// bytes.write(&mut 0, &false).unwrap();
+    /// bytes.write(&mut 1, &true).unwrap();
     ///
     /// assert_eq!(bytes, [0, 0xff]);
     /// ```
-    fn write<T>(&mut self, offset: &mut usize, t: T) -> Result<()>
+    fn write<T>(&mut self, offset: &mut usize, t: &T) -> Result<()>
     where
-        T: TryWrite<Ctx>,
+        T: TryWrite<Ctx> + ?Sized,
         Ctx: Default,
     {
         self.write_with(offset, t, Default::default())
@@ -351,15 +361,15 @@ pub trait BytesExt<Ctx> {
     /// let mut bytes_be = [0u8; 2];
     /// let mut bytes_le = [0u8; 2];
     ///
-    /// bytes_be.write_with::<u16>(&mut 0, 0xff, BE).unwrap();
-    /// bytes_le.write_with::<u16>(&mut 0, 0xff, LE).unwrap();
+    /// bytes_be.write_with::<u16>(&mut 0, &0xff, BE).unwrap();
+    /// bytes_le.write_with::<u16>(&mut 0, &0xff, LE).unwrap();
     ///
     /// assert_eq!(bytes_be, [0, 0xff]);
     /// assert_eq!(bytes_le, [0xff, 0]);
     /// ```
-    fn write_with<T>(&mut self, offset: &mut usize, t: T, ctx: Ctx) -> Result<()>
+    fn write_with<T>(&mut self, offset: &mut usize, t: &T, ctx: Ctx) -> Result<()>
     where
-        T: TryWrite<Ctx>;
+        T: TryWrite<Ctx> + ?Sized;
 }
 
 impl<Ctx> BytesExt<Ctx> for [u8] {
@@ -397,9 +407,9 @@ impl<Ctx> BytesExt<Ctx> for [u8] {
         }
     }
 
-    fn write_with<T>(&mut self, offset: &mut usize, t: T, ctx: Ctx) -> Result<()>
+    fn write_with<T>(&mut self, offset: &mut usize, t: &T, ctx: Ctx) -> Result<()>
     where
-        T: TryWrite<Ctx>,
+        T: TryWrite<Ctx> + ?Sized,
     {
         let slice = self;
 

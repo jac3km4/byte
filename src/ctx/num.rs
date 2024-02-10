@@ -81,7 +81,7 @@ macro_rules! num_impl {
 
         impl TryWrite<Endian> for $ty {
             #[inline]
-            fn try_write(self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
+            fn try_write(&self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
                 check_len(bytes, $size)?;
 
                 let _val = match endian {
@@ -118,8 +118,8 @@ macro_rules! float_impl {
 
         impl<'a> TryWrite<Endian> for $ty {
             #[inline]
-            fn try_write(self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
-                <$base as TryWrite<Endian>>::try_write(self.to_bits(), bytes, endian)
+            fn try_write(&self, bytes: &mut [u8], endian: Endian) -> Result<usize> {
+                <$base as TryWrite<Endian>>::try_write(&self.to_bits(), bytes, endian)
             }
         }
     };
