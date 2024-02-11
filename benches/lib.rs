@@ -17,14 +17,14 @@ fn bench_byteorder(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_read_num(b: &mut test::Bencher) {
-    b.iter(|| black_box(black_box([1, 2]).read_with::<u16>(&mut 0, LE).unwrap()));
+    b.iter(|| black_box(black_box([1, 2]).read::<u16>(&mut 0, LE).unwrap()));
     b.bytes = 2;
 }
 
 #[bench]
 fn bench_str(b: &mut test::Bencher) {
     let bytes = b"abcdefghijkl";
-    b.iter(|| black_box(black_box(bytes).read_with::<&str>(&mut 0, Len(5)).unwrap()));
+    b.iter(|| black_box(black_box(bytes).read::<&str>(&mut 0, Len(5)).unwrap()));
     b.bytes = 5;
 }
 
@@ -38,7 +38,7 @@ fn bench_str_hardcode(b: &mut test::Bencher) {
 #[bench]
 fn bench_example_read(b: &mut test::Bencher) {
     let bytes = black_box([0, 5, b"H"[0], b"E"[0], b"L"[0], b"L"[0], b"O"[0], 0]);
-    b.iter(|| black_box(bytes.read_with::<Header>(&mut 0, BE).unwrap()));
+    b.iter(|| black_box(bytes.read::<Header>(&mut 0, BE).unwrap()));
     b.bytes = 8;
 }
 
@@ -50,7 +50,7 @@ fn bench_example_write(b: &mut test::Bencher) {
             name: "HELLO",
             enabled: false,
         });
-        bytes.write_with::<Header>(&mut 0, &header, BE).unwrap()
+        bytes.write::<Header>(&mut 0, &header, BE).unwrap()
     });
     b.bytes = 8;
 }
@@ -134,9 +134,9 @@ impl<'a, Ctx: Endianess> TryRead<'a, Ctx> for Header<'a> {
     fn try_read(bytes: &'a [u8], endian: Ctx) -> Result<(Self, usize)> {
         let offset = &mut 0;
 
-        let name_len = black_box(bytes.read_with::<u16>(offset, endian)? as usize);
-        let name = bytes.read_with::<&str>(offset, Len(name_len))?;
-        let enabled = bytes.read(offset)?;
+        let name_len = black_box(bytes.read::<u16>(offset, endian)? as usize);
+        let name = bytes.read::<&str>(offset, Len(name_len))?;
+        let enabled = bytes.read(offset, ())?;
 
         Ok((Header { name, enabled }, *offset))
     }
@@ -146,9 +146,9 @@ impl<'a, Ctx: Endianess> TryWrite<Ctx> for Header<'a> {
     fn try_write(&self, bytes: &mut [u8], endian: Ctx) -> Result<usize> {
         let offset = &mut 0;
 
-        bytes.write_with(offset, &(self.name.len() as u16), endian)?;
-        bytes.write_with(offset, self.name, ())?;
-        bytes.write(offset, &self.enabled)?;
+        bytes.write(offset, &(self.name.len() as u16), endian)?;
+        bytes.write(offset, self.name, ())?;
+        bytes.write(offset, &self.enabled, ())?;
 
         Ok(*offset)
     }
@@ -169,14 +169,14 @@ impl<'a, Ctx: Endianess> TryRead<'a, Ctx> for Numbers {
     fn try_read(bytes: &'a [u8], endian: Ctx) -> Result<(Self, usize)> {
         let offset = &mut 0;
 
-        let one = bytes.read_with(offset, endian)?;
-        let two = bytes.read_with(offset, endian)?;
-        let three = bytes.read_with(offset, endian)?;
-        let four = bytes.read_with(offset, endian)?;
-        let five = bytes.read_with(offset, endian)?;
-        let six = bytes.read_with(offset, endian)?;
-        let seven = bytes.read_with(offset, endian)?;
-        let eight = bytes.read_with(offset, endian)?;
+        let one = bytes.read(offset, endian)?;
+        let two = bytes.read(offset, endian)?;
+        let three = bytes.read(offset, endian)?;
+        let four = bytes.read(offset, endian)?;
+        let five = bytes.read(offset, endian)?;
+        let six = bytes.read(offset, endian)?;
+        let seven = bytes.read(offset, endian)?;
+        let eight = bytes.read(offset, endian)?;
 
         Ok((
             Numbers {
@@ -198,14 +198,14 @@ impl<'a, Ctx: Endianess> TryWrite<Ctx> for Numbers {
     fn try_write(&self, bytes: &mut [u8], endian: Ctx) -> Result<usize> {
         let offset = &mut 0;
 
-        bytes.write_with(offset, &self.one, endian)?;
-        bytes.write_with(offset, &self.two, endian)?;
-        bytes.write_with(offset, &self.three, endian)?;
-        bytes.write_with(offset, &self.four, endian)?;
-        bytes.write_with(offset, &self.five, endian)?;
-        bytes.write_with(offset, &self.six, endian)?;
-        bytes.write_with(offset, &self.seven, endian)?;
-        bytes.write_with(offset, &self.eight, endian)?;
+        bytes.write(offset, &self.one, endian)?;
+        bytes.write(offset, &self.two, endian)?;
+        bytes.write(offset, &self.three, endian)?;
+        bytes.write(offset, &self.four, endian)?;
+        bytes.write(offset, &self.five, endian)?;
+        bytes.write(offset, &self.six, endian)?;
+        bytes.write(offset, &self.seven, endian)?;
+        bytes.write(offset, &self.eight, endian)?;
 
         Ok(*offset)
     }

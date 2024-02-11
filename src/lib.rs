@@ -31,7 +31,7 @@
 //! let bytes: &[u8] = &[0xde, 0xad, 0xbe, 0xef];
 //!
 //! let offset = &mut 0;
-//! let num = bytes.read_with::<u32>(offset, BE).unwrap();
+//! let num = bytes.read::<u32>(offset, BE).unwrap();
 //! assert_eq!(num, 0xdeadbeef);
 //! assert_eq!(*offset, 4);
 //! ```
@@ -45,7 +45,7 @@
 //! let bytes: &[u8] = b"hello, world!\0dump";
 //!
 //! let offset = &mut 0;
-//! let str = bytes.read_with::<&str>(offset, Delimiter(NULL)).unwrap();
+//! let str = bytes.read::<&str>(offset, Delimiter(NULL)).unwrap();
 //! assert_eq!(str, "hello, world!");
 //! assert_eq!(*offset, 14);
 //! ```
@@ -88,10 +88,10 @@
 //!     fn try_read(bytes: &'a [u8], endian: Ctx) -> Result<(Self, usize)> {
 //!         let offset = &mut 0;
 //!
-//!         let name_len = bytes.read_with::<u16>(offset, endian)? as usize;
+//!         let name_len = bytes.read::<u16>(offset, endian)? as usize;
 //!         let header = Header {
-//!             name: bytes.read_with::<&str>(offset, Len(name_len))?,
-//!             enabled: bytes.read::<bool>(offset)?,
+//!             name: bytes.read::<&str>(offset, Len(name_len))?,
+//!             enabled: bytes.read::<bool>(offset, ())?,
 //!         };
 //!
 //!         Ok((header, *offset))
@@ -102,9 +102,9 @@
 //!     fn try_write(&self, bytes: &mut [u8], endian: Ctx) -> Result<usize> {
 //!         let offset = &mut 0;
 //!
-//!         bytes.write_with::<u16>(offset, &(self.name.len() as u16), endian)?;
-//!         bytes.write_with::<str>(offset, self.name, ())?;
-//!         bytes.write::<bool>(offset, &self.enabled)?;
+//!         bytes.write::<u16>(offset, &(self.name.len() as u16), endian)?;
+//!         bytes.write::<str>(offset, self.name, ())?;
+//!         bytes.write::<bool>(offset, &self.enabled, ())?;
 //!
 //!         Ok(*offset)
 //!     }
@@ -116,13 +116,13 @@
 //! ```ignore
 //! let bytes = [0, 5, b"H"[0], b"E"[0], b"L"[0], b"L"[0], b"O"[0], 0];
 //!
-//! let header: Header = bytes.read_with(&mut 0, BE).unwrap();
+//! let header: Header = bytes.read(&mut 0, BE).unwrap();
 //!
 //! assert_eq!(header.name, "HELLO");
 //! assert_eq!(header.enabled, false);
 //!
 //! let mut write = [0u8; 8];
-//! write.write_with(&mut 0, header, BE).unwrap();
+//! write.write(&mut 0, header, BE).unwrap();
 //! assert_eq!(write, bytes);
 //! ```
 
@@ -243,7 +243,7 @@ where
         let offset = &mut 0;
         let mut arr = core::array::from_fn(|_| A::default());
         for i in 0..N {
-            arr[i] = bytes.read_with(offset, ctx)?
+            arr[i] = bytes.read(offset, ctx)?
         }
         Ok((arr, *offset))
     }
@@ -308,7 +308,7 @@ where
     fn try_write(&self, bytes: &mut [u8], ctx: Ctx) -> Result<usize> {
         let offset = &mut 0;
         for val in self {
-            bytes.write_with(offset, val, ctx)?;
+            bytes.write(offset, val, ctx)?;
         }
         Ok(*offset)
     }
@@ -369,29 +369,6 @@ where
 /// It tells the starting position, and will be increased by the number
 /// which will be increased by size the operation consumed.
 pub trait BytesExt<Ctx> {
-    /// Reads a value from a byte slice using the default context.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use byte::*;
-    ///
-    /// let bytes: &[u8] = &[0, 1];
-    ///
-    /// let bool1: bool = bytes.read(&mut 0).unwrap();
-    /// let bool2: bool = bytes.read(&mut 1).unwrap();
-    ///
-    /// assert_eq!(bool1, false);
-    /// assert_eq!(bool2, true);
-    /// ```
-    fn read<'a, T>(&'a self, offset: &mut usize) -> Result<T>
-    where
-        T: TryRead<'a, Ctx>,
-        Ctx: Default,
-    {
-        self.read_with(offset, Default::default())
-    }
-
     /// Reads a value from a byte slice specifying the context.
     ///
     /// # Example
@@ -402,12 +379,20 @@ pub trait BytesExt<Ctx> {
     ///
     /// let bytes: &[u8] = b"hello, world!";
     ///
-    /// let str: &str = bytes.read_with(&mut 0, Delimiter(b"!"[0])).unwrap();
+    /// let str: &str = bytes.read(&mut 0, Delimiter(b"!"[0])).unwrap();
     /// assert_eq!(str, "hello, world");
     /// ```
-    fn read_with<'a, T>(&'a self, offset: &mut usize, ctx: Ctx) -> Result<T>
+    fn read<'a, T>(&'a self, offset: &mut usize, ctx: Ctx) -> Result<T>
     where
         T: TryRead<'a, Ctx>;
+
+    #[inline]
+    fn read_at<'a, T>(&'a self, mut offset: usize, ctx: Ctx) -> Result<T>
+    where
+        T: TryRead<'a, Ctx>,
+    {
+        self.read(&mut offset, ctx)
+    }
 
     /// Reads multiple values of the same type using an iterator.
     ///
@@ -434,28 +419,6 @@ pub trait BytesExt<Ctx> {
         T: TryRead<'a, Ctx>,
         Ctx: Clone;
 
-    /// Writes a value into a byte slice using the default context.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use byte::*;
-    ///
-    /// let mut bytes = [0u8; 2];
-    ///
-    /// bytes.write(&mut 0, &false).unwrap();
-    /// bytes.write(&mut 1, &true).unwrap();
-    ///
-    /// assert_eq!(bytes, [0, 0xff]);
-    /// ```
-    fn write<T>(&mut self, offset: &mut usize, t: &T) -> Result<()>
-    where
-        T: TryWrite<Ctx> + ?Sized,
-        Ctx: Default,
-    {
-        self.write_with(offset, t, Default::default())
-    }
-
     /// Writes a value into a byte slice specifiying the context.
     ///
     /// # Example
@@ -467,20 +430,28 @@ pub trait BytesExt<Ctx> {
     /// let mut bytes_be = [0u8; 2];
     /// let mut bytes_le = [0u8; 2];
     ///
-    /// bytes_be.write_with::<u16>(&mut 0, &0xff, BE).unwrap();
-    /// bytes_le.write_with::<u16>(&mut 0, &0xff, LE).unwrap();
+    /// bytes_be.write::<u16>(&mut 0, &0xff, BE).unwrap();
+    /// bytes_le.write::<u16>(&mut 0, &0xff, LE).unwrap();
     ///
     /// assert_eq!(bytes_be, [0, 0xff]);
     /// assert_eq!(bytes_le, [0xff, 0]);
     /// ```
-    fn write_with<T>(&mut self, offset: &mut usize, t: &T, ctx: Ctx) -> Result<()>
+    fn write<T>(&mut self, offset: &mut usize, t: &T, ctx: Ctx) -> Result<()>
     where
         T: TryWrite<Ctx> + ?Sized;
+
+    #[inline]
+    fn write_at<T>(&mut self, mut offset: usize, t: &T, ctx: Ctx) -> Result<()>
+    where
+        T: TryWrite<Ctx> + ?Sized,
+    {
+        self.write(&mut offset, t, ctx)
+    }
 }
 
 impl<Ctx> BytesExt<Ctx> for [u8] {
     #[inline]
-    fn read_with<'a, T>(&'a self, offset: &mut usize, ctx: Ctx) -> Result<T>
+    fn read<'a, T>(&'a self, offset: &mut usize, ctx: Ctx) -> Result<T>
     where
         T: TryRead<'a, Ctx>,
     {
@@ -513,7 +484,7 @@ impl<Ctx> BytesExt<Ctx> for [u8] {
         }
     }
 
-    fn write_with<T>(&mut self, offset: &mut usize, t: &T, ctx: Ctx) -> Result<()>
+    fn write<T>(&mut self, offset: &mut usize, t: &T, ctx: Ctx) -> Result<()>
     where
         T: TryWrite<Ctx> + ?Sized,
     {

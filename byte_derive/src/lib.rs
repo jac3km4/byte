@@ -68,12 +68,12 @@ fn impl_struct_read(
                         let ctx = attrs
                             .ctx
                             .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                        quote::quote!(let #owned_name = ::byte::BytesExt::read_with(bytes, offset, #ctx)?)
+                        quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, offset, #ctx)?)
                     }
                     Err(err) => err.to_compile_error(),
                 }
             } else {
-                quote::quote!(let #owned_name = ::byte::BytesExt::read_with(bytes, offset, ctx)?)
+                quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, offset, ctx)?)
             };
             quote::quote! {
                 #assign;
@@ -151,12 +151,12 @@ fn impl_struct_write(
                     let ctx = value
                         .ctx
                         .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                    quote::quote!(::byte::BytesExt::write_with(bytes, offset, #name, #ctx)?;)
+                    quote::quote!(::byte::BytesExt::write(bytes, offset, #name, #ctx)?;)
                 }
                 Err(err) => err.to_compile_error(),
             }
         } else {
-            quote::quote!(::byte::BytesExt::write_with(bytes, offset, #name, ctx)?;)
+            quote::quote!(::byte::BytesExt::write(bytes, offset, #name, ctx)?;)
         }
     });
 

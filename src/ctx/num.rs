@@ -24,10 +24,10 @@ pub trait Endianess: Copy {
 /// use byte::*;
 ///
 /// let bytes: &[u8] = &[0x00, 0xff];
-/// let num_le: u16 = bytes.read_with(&mut 0, LE).unwrap();
+/// let num_le: u16 = bytes.read(&mut 0, LE).unwrap();
 /// assert_eq!(num_le, 0xff00);
 /// ```
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
 pub struct LittleEndian;
 
 impl Endianess for LittleEndian {
@@ -82,10 +82,10 @@ impl Endianess for LittleEndian {
 ///
 /// let bytes: &[u8] = &[0x00, 0xff];
 ///
-/// let num_be: u16 = bytes.read_with(&mut 0, BE).unwrap();
+/// let num_be: u16 = bytes.read(&mut 0, BE).unwrap();
 /// assert_eq!(num_be, 0x00ff);
 /// ```
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
 pub struct BigEndian;
 
 impl Endianess for BigEndian {

@@ -94,7 +94,7 @@ impl TryWrite<Delimiter> for str {
     }
 }
 
-impl Measure<()> for &str {
+impl Measure for &str {
     #[inline]
     fn measure(&self, _: ()) -> usize {
         self.len()

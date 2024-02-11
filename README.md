@@ -38,7 +38,7 @@ use byte::*;
 let bytes: &[u8] = &[0xde, 0xad, 0xbe, 0xef];
 
 let offset = &mut 0;
-let num = bytes.read_with::<u32>(offset, BE).unwrap();
+let num = bytes.read::<u32>(offset, BE, ()).unwrap();
 assert_eq!(num, 0xdeadbeef);
 assert_eq!(*offset, 4);
 ```
@@ -50,7 +50,7 @@ use byte::ctx::{Str, NULL};
 let bytes: &[u8] = b"hello, world!\0dump";
 
 let offset = &mut 0;
-let str = bytes.read_with::<&str>(offset, Str::Delimiter(NULL)).unwrap();
+let str = bytes.read::<&str>(offset, Str::Delimiter(NULL)).unwrap();
 assert_eq!(str, "hello, world!");
 assert_eq!(*offset, 14);
 ```

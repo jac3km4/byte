@@ -1,17 +1,17 @@
 use crate::{check_len, Measure, Result, TryRead, TryWrite};
 
-impl<'a> TryRead<'a> for bool {
+impl<'a, Ctx> TryRead<'a, Ctx> for bool {
     #[inline]
-    fn try_read(bytes: &'a [u8], _ctx: ()) -> Result<(Self, usize)> {
+    fn try_read(bytes: &'a [u8], _ctx: Ctx) -> Result<(Self, usize)> {
         check_len(bytes, 1)?;
 
         Ok((bytes[0] != 0, 1))
     }
 }
 
-impl TryWrite for bool {
+impl<Ctx> TryWrite<Ctx> for bool {
     #[inline]
-    fn try_write(&self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
+    fn try_write(&self, bytes: &mut [u8], _ctx: Ctx) -> Result<usize> {
         check_len(bytes, 1)?;
 
         bytes[0] = if *self { u8::max_value() } else { 0 };
@@ -20,9 +20,9 @@ impl TryWrite for bool {
     }
 }
 
-impl Measure for bool {
+impl<Ctx> Measure<Ctx> for bool {
     #[inline]
-    fn measure(&self, _: ()) -> usize {
+    fn measure(&self, _: Ctx) -> usize {
         1
     }
 }
