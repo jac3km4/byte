@@ -196,15 +196,15 @@ fn test_bytes_pattern() {
 #[test]
 #[cfg(feature = "alloc")]
 fn test_into_bytes() {
-    assert_eq!("hello world".to_bytes_with(()), Ok(b"hello world".to_vec()));
-    assert_eq!(0xFFu32.to_bytes_with(LE), Ok(vec![0xFF, 0, 0, 0]));
-    assert_eq!(0xFFu32.to_bytes_with(BE), Ok(vec![0, 0, 0, 0xFF]));
+    assert_eq!("hello world".to_bytes(()), Ok(b"hello world".to_vec()));
+    assert_eq!(0xFFu32.to_bytes(LE), Ok(vec![0xFF, 0, 0, 0]));
+    assert_eq!(0xFFu32.to_bytes(BE), Ok(vec![0, 0, 0, 0xFF]));
 
     let header = Header {
         name: "hello world",
         enabled: true,
     };
-    let encoded = header.to_bytes_with(BE).unwrap();
+    let encoded = header.to_bytes(BE).unwrap();
     let decoded = encoded.read::<Header>(&mut 0, BE);
     assert_eq!(Ok(header), decoded);
 }

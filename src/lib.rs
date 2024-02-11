@@ -509,22 +509,6 @@ impl<Ctx> BytesExt<Ctx> for [u8] {
 /// Extension methods for values that can be measured and serialized.
 pub trait ToBytesExt<Ctx>: Sized + Measure<Ctx> + TryWrite<Ctx> {
     /// Allocates a `Vec` with size based on the result of `measure()` and writes the value into it.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use byte::*;
-    ///
-    /// assert_eq!("\x01\x02\x03".to_bytes_with(()), Ok(vec![1, 2, 3]));
-    /// ```
-    fn to_bytes(self) -> Result<Vec<u8>>
-    where
-        Ctx: Default,
-    {
-        self.to_bytes_with(Default::default())
-    }
-
-    /// Allocates a `Vec` with size based on the result of `measure()` and writes the value into it.
     /// Expecting the context to be specified.
     ///
     /// # Example
@@ -532,9 +516,9 @@ pub trait ToBytesExt<Ctx>: Sized + Measure<Ctx> + TryWrite<Ctx> {
     /// ```
     /// use byte::*;
     ///
-    /// assert_eq!(0xFFu32.to_bytes_with(BE), Ok(vec![0, 0, 0, 0xff]));
+    /// assert_eq!(0xFFu32.to_bytes(BE), Ok(vec![0, 0, 0, 0xff]));
     /// ```
-    fn to_bytes_with(&self, ctx: Ctx) -> Result<Vec<u8>>;
+    fn to_bytes(&self, ctx: Ctx) -> Result<Vec<u8>>;
 }
 
 #[cfg(feature = "alloc")]
@@ -543,7 +527,7 @@ where
     Ctx: Copy,
     A: Measure<Ctx> + TryWrite<Ctx>,
 {
-    fn to_bytes_with(&self, ctx: Ctx) -> Result<Vec<u8>> {
+    fn to_bytes(&self, ctx: Ctx) -> Result<Vec<u8>> {
         let mut bytes = alloc::vec![0; self.measure(ctx)];
         self.try_write(&mut bytes, ctx)?;
         Ok(bytes)
