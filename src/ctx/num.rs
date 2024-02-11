@@ -238,6 +238,13 @@ impl<Ctx> TryWrite<Ctx> for u8 {
     }
 }
 
+impl<Ctx> Measure<Ctx> for u8 {
+    #[inline]
+    fn measure(&self, _: Ctx) -> usize {
+        1
+    }
+}
+
 impl<Ctx> TryRead<'_, Ctx> for i8 {
     #[inline]
     fn try_read(bytes: &[u8], _: Ctx) -> Result<(Self, usize)> {
@@ -252,5 +259,12 @@ impl<Ctx> TryWrite<Ctx> for i8 {
         check_len(bytes, 1)?;
         bytes[0] = *self as u8;
         Ok(1)
+    }
+}
+
+impl<Ctx> Measure<Ctx> for i8 {
+    #[inline]
+    fn measure(&self, _: Ctx) -> usize {
+        1
     }
 }

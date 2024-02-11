@@ -68,12 +68,12 @@ fn impl_struct_read(
                         let ctx = attrs
                             .ctx
                             .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                        quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, offset, #ctx)?)
+                        quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, __offset, #ctx)?)
                     }
                     Err(err) => err.to_compile_error(),
                 }
             } else {
-                quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, offset, ctx)?)
+                quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, __offset, ctx)?)
             };
             quote::quote! {
                 #assign;
@@ -103,9 +103,9 @@ fn impl_struct_read(
                 __Ctx: ::byte::ctx::Endianess,
                 #predicates {
             fn try_read(bytes: & #input_lt [u8], ctx: __Ctx) -> ::byte::Result<(Self, usize)> {
-                let mut offset = &mut 0;
+                let __offset = &mut 0;
                 #(#field_reads)*
-                Ok((#result, *offset))
+                Ok((#result, *__offset))
             }
         }
     }
@@ -151,12 +151,12 @@ fn impl_struct_write(
                     let ctx = value
                         .ctx
                         .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                    quote::quote!(::byte::BytesExt::write(bytes, offset, #name, #ctx)?;)
+                    quote::quote!(::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;)
                 }
                 Err(err) => err.to_compile_error(),
             }
         } else {
-            quote::quote!(::byte::BytesExt::write(bytes, offset, #name, ctx)?;)
+            quote::quote!(::byte::BytesExt::write(bytes, __offset, #name, ctx)?;)
         }
     });
 
@@ -177,10 +177,10 @@ fn impl_struct_write(
                 __Ctx: ::byte::ctx::Endianess,
                 #predicates {
             fn try_write(&self, bytes: &mut [u8], ctx: __Ctx) -> ::byte::Result<usize> {
-                let mut offset = &mut 0;
+                let __offset = &mut 0;
                 #extract_fields
                 #(#field_writes)*
-                Ok(*offset)
+                Ok(*__offset)
             }
         }
     }
