@@ -307,7 +307,7 @@ struct Header<'a> {
 }
 
 impl<Ctx> Measure<Ctx> for &Header<'_> {
-    fn measure(self, _: Ctx) -> usize {
+    fn measure(&self, _: Ctx) -> usize {
         2 + self.name.len() + 1
     }
 }

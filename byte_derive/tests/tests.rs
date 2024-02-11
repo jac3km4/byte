@@ -1,9 +1,9 @@
 use byte::{
     ctx::{Str, NONE},
-    TryRead, TryWrite, LE,
+    Measure, TryRead, TryWrite, LE,
 };
 
-#[derive(Debug, Clone, PartialEq, TryWrite, TryRead)]
+#[derive(Debug, Clone, PartialEq, TryWrite, TryRead, Measure)]
 struct Named<'a> {
     id: u32,
     timestamp: f64,
@@ -20,10 +20,11 @@ fn test_named_struct() {
     };
     let buf = &mut [0; 18];
     data.try_write(buf, LE).unwrap();
+    assert_eq!(data.measure(LE), 17);
     assert_eq!(Ok((data, 18)), Named::try_read(buf, LE));
 }
 
-#[derive(Debug, Clone, PartialEq, TryWrite, TryRead)]
+#[derive(Debug, Clone, PartialEq, TryWrite, TryRead, Measure)]
 struct NoLifetime {
     id: u32,
     timestamp: f64,
@@ -37,6 +38,7 @@ fn test_no_lifetime_struct() {
     };
     let buf = &mut [0; 12];
     data.try_write(buf, LE).unwrap();
+    assert_eq!(data.measure(LE), 12);
     assert_eq!(Ok((data, 12)), NoLifetime::try_read(buf, LE));
 }
 

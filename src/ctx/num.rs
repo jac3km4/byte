@@ -54,7 +54,7 @@ macro_rules! num_impl {
     ($ty: ty, $size: tt) => {
         impl<Ctx> Measure<Ctx> for $ty {
             #[inline]
-            fn measure(self, _: Ctx) -> usize {
+            fn measure(&self, _: Ctx) -> usize {
                 ::core::mem::size_of::<$ty>()
             }
         }
@@ -116,7 +116,7 @@ macro_rules! float_impl {
     ($ty: ty, $base: ty) => {
         impl<Ctx> Measure<Ctx> for $ty {
             #[inline]
-            fn measure(self, _: Ctx) -> usize {
+            fn measure(&self, _: Ctx) -> usize {
                 ::core::mem::size_of::<$ty>()
             }
         }

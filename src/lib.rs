@@ -139,7 +139,7 @@ use core::marker::PhantomData;
 pub use ctx::{BE, LE};
 
 #[cfg(feature = "derive")]
-pub use byte_derive::{TryRead, TryWrite};
+pub use byte_derive::{Measure, TryRead, TryWrite};
 
 /// A specialized Result type for `Byte`
 pub type Result<T> = core::result::Result<T, Error>;
@@ -272,12 +272,12 @@ pub trait Measure<Ctx = ()> {
     ///
     /// impl Measure for HasBool {
     ///     #[inline]
-    ///     fn measure(self, _ctx: ()) -> usize {
+    ///     fn measure(&self, _ctx: ()) -> usize {
     ///         1
     ///     }
     /// }
     /// ```
-    fn measure(self, ctx: Ctx) -> usize;
+    fn measure(&self, ctx: Ctx) -> usize;
 }
 
 /// Extension methods for byte slices.

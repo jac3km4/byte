@@ -2,7 +2,7 @@ use crate::{check_len, Measure, Result, TryRead, TryWrite};
 
 impl<Ctx> Measure<Ctx> for bool {
     #[inline]
-    fn measure(self, _: Ctx) -> usize {
+    fn measure(&self, _: Ctx) -> usize {
         1
     }
 }

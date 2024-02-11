@@ -162,6 +162,72 @@ fn impl_struct_write(
     }
 }
 
+fn impl_struct_measure(
+    name: &syn::Ident,
+    struct_fields: &syn::Fields,
+    generics: &syn::Generics,
+) -> proc_macro2::TokenStream {
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let fields = match struct_fields {
+        syn::Fields::Named(fields) => &fields.named,
+        syn::Fields::Unnamed(fields) => &fields.unnamed,
+        syn::Fields::Unit => {
+            // no fields, so no bytes to read
+            return quote::quote! {
+                impl #impl_generics ::byte::Measure<::byte::ctx::Endian> for #name #ty_generics #where_clause {
+                    #[inline]
+                    fn measure(&self, _: Ctx) -> usize {
+                        0
+                    }
+                }
+            };
+        }
+    };
+
+    let field_names = fields.iter().enumerate().map(|(i, field)| {
+        field
+            .ident
+            .clone()
+            .unwrap_or_else(|| syn::Ident::new(&format!("_{i}"), field.span()))
+    });
+
+    let field_sizes = fields.iter().zip(field_names.clone()).map(|(field, name)| {
+        if let Some(attr) = field.attrs.iter().find(|attr| attr.path().is_ident("byte")) {
+            match parse_field_attrs(attr) {
+                Ok(value) => {
+                    let write_ctx = value
+                        .write_ctx
+                        .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
+                    quote::quote!(::byte::Measure::measure(#name, #write_ctx))
+                }
+                Err(err) => err.to_compile_error(),
+            }
+        } else {
+            quote::quote!(::byte::Measure::measure(#name, ctx))
+        }
+    });
+
+    let extract_fields = match struct_fields {
+        syn::Fields::Named(_) => Some(quote::quote! {
+            let #name { #(#field_names),* } = self;
+        }),
+        syn::Fields::Unnamed(_) => Some(quote::quote! {
+            let #name ( #(#field_names),* ) = self;
+        }),
+        syn::Fields::Unit => unreachable!(),
+    };
+
+    quote::quote! {
+        impl #impl_generics ::byte::Measure<::byte::ctx::Endian> for #name #ty_generics #where_clause {
+            fn measure(&self, ctx: ::byte::ctx::Endian) -> usize {
+                #extract_fields
+                0 #(+ #field_sizes)*
+            }
+        }
+    }
+}
+
 fn impl_try_read(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     match &ast.data {
         syn::Data::Struct(data) => impl_struct_read(&ast.ident, &data.fields, &ast.generics),
@@ -178,6 +244,14 @@ fn impl_try_write(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
+fn impl_measure(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
+    match &ast.data {
+        syn::Data::Struct(data) => impl_struct_measure(&ast.ident, &data.fields, &ast.generics),
+        _ => syn::Error::new(ast.span(), "Measure can only be derived for structs")
+            .to_compile_error(),
+    }
+}
+
 #[proc_macro_derive(TryRead, attributes(byte))]
 pub fn derive_try_read(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -189,6 +263,13 @@ pub fn derive_try_read(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 pub fn derive_try_write(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let gen = impl_try_write(&ast);
+    gen.into()
+}
+
+#[proc_macro_derive(Measure, attributes(byte))]
+pub fn derive_measure(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let gen = impl_measure(&ast);
     gen.into()
 }
 

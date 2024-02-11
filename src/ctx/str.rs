@@ -55,7 +55,7 @@ pub const TAB: u8 = 0x09;
 
 impl Measure for &str {
     #[inline]
-    fn measure(self, _: ()) -> usize {
+    fn measure(&self, _: ()) -> usize {
         self.len()
     }
 }
