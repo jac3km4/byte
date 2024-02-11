@@ -76,9 +76,9 @@ fn impl_struct_read(
                 let ctx = attrs
                     .ctx
                     .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
+                let ty = &field.ty;
                 let read = match attrs.skip_if {
                     Some(skip_if) => {
-                        let ty = &field.ty;
                         quote::quote! {
                             if #skip_if {
                                 <#ty>::default()
@@ -92,9 +92,9 @@ fn impl_struct_read(
                     }
                 };
                 quote::quote! {
-                    let #owned_name = #read;
+                    let #owned_name: #ty = #read;
                     #[allow(unused_variables)]
-                    let #borrowed_name = &#owned_name;
+                    let #borrowed_name: &#ty = &#owned_name;
                 }
             });
 
