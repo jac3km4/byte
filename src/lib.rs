@@ -242,8 +242,8 @@ where
     fn try_read(bytes: &'a [u8], ctx: Ctx) -> Result<(Self, usize)> {
         let offset = &mut 0;
         let mut arr = core::array::from_fn(|_| A::default());
-        for i in 0..N {
-            arr[i] = bytes.read(offset, ctx)?
+        for el in &mut arr {
+            *el = bytes.read(offset, ctx)?
         }
         Ok((arr, *offset))
     }
