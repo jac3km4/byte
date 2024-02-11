@@ -63,6 +63,53 @@ fn test_len_dependent() {
     );
 }
 
+#[derive(Debug, Clone, PartialEq, TryWrite, TryRead)]
+struct Skipped {
+    bool: bool,
+    #[byte(skip_if = *bool)]
+    other: u32,
+}
+
+#[test]
+fn test_skipped() {
+    let data = Skipped {
+        bool: true,
+        other: 0x12345678,
+    };
+    let buf = &mut [0; 5];
+    data.try_write(buf, LE).unwrap();
+    assert_eq!(
+        Ok((
+            Skipped {
+                bool: true,
+                other: 0
+            },
+            1
+        )),
+        Skipped::try_read(buf, LE)
+    );
+}
+
+#[test]
+fn test_not_skipped() {
+    let data = Skipped {
+        bool: false,
+        other: 0x12345678,
+    };
+    let buf = &mut [0; 5];
+    data.try_write(buf, LE).unwrap();
+    assert_eq!(
+        Ok((
+            Skipped {
+                bool: false,
+                other: 0x12345678
+            },
+            5
+        )),
+        Skipped::try_read(buf, LE)
+    );
+}
+
 #[derive(Debug, Clone, PartialEq, TryRead, TryWrite)]
 struct Tuple<'a>(u32, f64, #[byte(ctx = Delimiter(0))] &'a str);
 

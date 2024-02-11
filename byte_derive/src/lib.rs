@@ -1,7 +1,9 @@
 use syn::{punctuated::Punctuated, spanned::Spanned};
 
+#[derive(Default)]
 struct FieldAttributes {
     ctx: Option<syn::Expr>,
+    skip_if: Option<syn::Expr>,
 }
 
 fn impl_struct_read(
@@ -59,29 +61,42 @@ fn impl_struct_read(
         (owned_name, borrowed_name)
     });
 
-    let field_reads = fields.iter().zip(field_names.clone()).map(
-        |(field, (owned_name, borrowed_name))| {
-            let attr = field.attrs.iter().find(|attr| attr.path().is_ident("byte"));
-            let assign = if let Some(attr) = attr {
-                match parse_field_attrs(attr) {
-                    Ok(attrs) => {
-                        let ctx = attrs
-                            .ctx
-                            .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                        quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, __offset, #ctx)?)
+    let field_reads =
+        fields
+            .iter()
+            .zip(field_names.clone())
+            .map(|(field, (owned_name, borrowed_name))| {
+                let attr = field.attrs.iter().find(|attr| attr.path().is_ident("byte"));
+
+                let attrs = match attr.map_or_else(|| Ok(Default::default()), parse_field_attrs) {
+                    Ok(attrs) => attrs,
+                    Err(err) => return err.to_compile_error(),
+                };
+
+                let ctx = attrs
+                    .ctx
+                    .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
+                let read = match attrs.skip_if {
+                    Some(skip_if) => {
+                        let ty = &field.ty;
+                        quote::quote! {
+                            if #skip_if {
+                                <#ty>::default()
+                            } else {
+                                ::byte::BytesExt::read(bytes, __offset, #ctx)?
+                            }
+                        }
                     }
-                    Err(err) => err.to_compile_error(),
+                    None => {
+                        quote::quote!(::byte::BytesExt::read(bytes, __offset, #ctx)?)
+                    }
+                };
+                quote::quote! {
+                    let #owned_name = #read;
+                    #[allow(unused_variables)]
+                    let #borrowed_name = &#owned_name;
                 }
-            } else {
-                quote::quote!(let #owned_name = ::byte::BytesExt::read(bytes, __offset, ctx)?)
-            };
-            quote::quote! {
-                #assign;
-                #[allow(unused_variables)]
-                let #borrowed_name = &#owned_name;
-            }
-        },
-    );
+            });
 
     let result = match struct_fields {
         syn::Fields::Named(_) => {
@@ -145,18 +160,23 @@ fn impl_struct_write(
     });
 
     let field_writes = fields.iter().zip(field_names.clone()).map(|(field, name)| {
-        if let Some(attr) = field.attrs.iter().find(|attr| attr.path().is_ident("byte")) {
-            match parse_field_attrs(attr) {
-                Ok(value) => {
-                    let ctx = value
-                        .ctx
-                        .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                    quote::quote!(::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;)
+        let attr = field.attrs.iter().find(|attr| attr.path().is_ident("byte"));
+        let attrs = match attr.map_or_else(|| Ok(Default::default()), parse_field_attrs) {
+            Ok(attrs) => attrs,
+            Err(err) => return err.to_compile_error(),
+        };
+        let ctx = attrs
+            .ctx
+            .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
+        match attrs.skip_if {
+            Some(skip_if) => {
+                quote::quote! {
+                    if !#skip_if {
+                        ::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;
+                    }
                 }
-                Err(err) => err.to_compile_error(),
             }
-        } else {
-            quote::quote!(::byte::BytesExt::write(bytes, __offset, #name, ctx)?;)
+            None => quote::quote!(::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;),
         }
     });
 
@@ -220,18 +240,25 @@ fn impl_struct_measure(
     });
 
     let field_sizes = fields.iter().zip(field_names.clone()).map(|(field, name)| {
-        if let Some(attr) = field.attrs.iter().find(|attr| attr.path().is_ident("byte")) {
-            match parse_field_attrs(attr) {
-                Ok(value) => {
-                    let ctx = value
-                        .ctx
-                        .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                    quote::quote!(::byte::Measure::measure(#name, #ctx))
+        let attr = field.attrs.iter().find(|attr| attr.path().is_ident("byte"));
+        let attrs = match attr.map_or_else(|| Ok(Default::default()), parse_field_attrs) {
+            Ok(attrs) => attrs,
+            Err(err) => return err.to_compile_error(),
+        };
+        let ctx = attrs
+            .ctx
+            .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
+        match attrs.skip_if {
+            Some(skip_if) => {
+                quote::quote! {
+                    if !#skip_if {
+                        ::byte::Measure::measure(#name, #ctx)
+                    } else {
+                        0
+                    }
                 }
-                Err(err) => err.to_compile_error(),
             }
-        } else {
-            quote::quote!(::byte::Measure::measure(#name, ctx))
+            None => quote::quote!(::byte::Measure::measure(#name, #ctx)),
         }
     });
 
@@ -318,11 +345,16 @@ fn parse_field_attrs(attr: &syn::Attribute) -> Result<FieldAttributes, syn::Erro
     let parser = Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated;
     let args = attr.meta.require_list()?.parse_args_with(parser)?;
 
-    let mut attributes = FieldAttributes { ctx: None };
+    let mut attributes = FieldAttributes {
+        ctx: None,
+        skip_if: None,
+    };
 
     for arg in args {
         if arg.path.is_ident("ctx") {
             attributes.ctx = Some(arg.value);
+        } else if arg.path.is_ident("skip_if") {
+            attributes.skip_if = Some(arg.value);
         } else {
             return Err(syn::Error::new(arg.path.span(), "unknown attribute"));
         }
