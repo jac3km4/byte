@@ -1,8 +1,7 @@
 use syn::{punctuated::Punctuated, spanned::Spanned};
 
 struct FieldAttributes {
-    read_ctx: Option<syn::Expr>,
-    write_ctx: Option<syn::Expr>,
+    ctx: Option<syn::Expr>,
 }
 
 fn impl_struct_read(
@@ -52,32 +51,48 @@ fn impl_struct_read(
     }
 
     let field_names = fields.iter().enumerate().map(|(i, field)| {
-        field
+        let borrowed_name = field
             .ident
             .clone()
-            .unwrap_or_else(|| syn::Ident::new(&format!("_{i}"), field.span()))
+            .unwrap_or_else(|| syn::Ident::new(&format!("_{i}"), field.span()));
+        let owned_name = quote::format_ident!("__owned_{i}");
+        (owned_name, borrowed_name)
     });
 
-    let field_reads = fields.iter().zip(field_names.clone()).map(|(field, name)| {
-        let attr = field.attrs.iter().find(|attr| attr.path().is_ident("byte"));
-        if let Some(attr) = attr {
-            match parse_field_attrs(attr) {
-                Ok(attrs) => {
-                    let read_ctx = attrs
-                        .read_ctx
-                        .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                    quote::quote!(let #name = ::byte::BytesExt::read_with(bytes, offset, #read_ctx)?;)
+    let field_reads = fields.iter().zip(field_names.clone()).map(
+        |(field, (owned_name, borrowed_name))| {
+            let attr = field.attrs.iter().find(|attr| attr.path().is_ident("byte"));
+            let assign = if let Some(attr) = attr {
+                match parse_field_attrs(attr) {
+                    Ok(attrs) => {
+                        let ctx = attrs
+                            .ctx
+                            .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
+                        quote::quote!(let #owned_name = ::byte::BytesExt::read_with(bytes, offset, #ctx)?)
+                    }
+                    Err(err) => err.to_compile_error(),
                 }
-                Err(err) => err.to_compile_error(),
+            } else {
+                quote::quote!(let #owned_name = ::byte::BytesExt::read_with(bytes, offset, ctx)?)
+            };
+            quote::quote! {
+                #assign;
+                #[allow(unused_variables)]
+                let #borrowed_name = &#owned_name;
             }
-        } else {
-            quote::quote!(let #name = ::byte::BytesExt::read_with(bytes, offset, ctx)?;)
-        }
-    });
+        },
+    );
 
     let result = match struct_fields {
-        syn::Fields::Named(_) => quote::quote!(Self { #(#field_names),* }),
-        syn::Fields::Unnamed(_) => quote::quote!(Self( #(#field_names),* )),
+        syn::Fields::Named(_) => {
+            let it = field_names
+                .map(|(owned_name, borrowed_name)| quote::quote!(#borrowed_name: #owned_name));
+            quote::quote!(Self { #(#it),* })
+        }
+        syn::Fields::Unnamed(_) => {
+            let it = field_names.map(|(owned_name, _)| owned_name);
+            quote::quote!(Self(#(#it),*))
+        }
         syn::Fields::Unit => unreachable!(),
     };
     let predicates = where_clause.map(|w| &w.predicates);
@@ -133,10 +148,10 @@ fn impl_struct_write(
         if let Some(attr) = field.attrs.iter().find(|attr| attr.path().is_ident("byte")) {
             match parse_field_attrs(attr) {
                 Ok(value) => {
-                    let write_ctx = value
-                        .write_ctx
+                    let ctx = value
+                        .ctx
                         .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                    quote::quote!(::byte::BytesExt::write_with(bytes, offset, #name, #write_ctx)?;)
+                    quote::quote!(::byte::BytesExt::write_with(bytes, offset, #name, #ctx)?;)
                 }
                 Err(err) => err.to_compile_error(),
             }
@@ -208,10 +223,10 @@ fn impl_struct_measure(
         if let Some(attr) = field.attrs.iter().find(|attr| attr.path().is_ident("byte")) {
             match parse_field_attrs(attr) {
                 Ok(value) => {
-                    let write_ctx = value
-                        .write_ctx
+                    let ctx = value
+                        .ctx
                         .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-                    quote::quote!(::byte::Measure::measure(#name, #write_ctx))
+                    quote::quote!(::byte::Measure::measure(#name, #ctx))
                 }
                 Err(err) => err.to_compile_error(),
             }
@@ -303,16 +318,11 @@ fn parse_field_attrs(attr: &syn::Attribute) -> Result<FieldAttributes, syn::Erro
     let parser = Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated;
     let args = attr.meta.require_list()?.parse_args_with(parser)?;
 
-    let mut attributes = FieldAttributes {
-        read_ctx: None,
-        write_ctx: None,
-    };
+    let mut attributes = FieldAttributes { ctx: None };
 
     for arg in args {
-        if arg.path.is_ident("read_ctx") {
-            attributes.read_ctx = Some(arg.value);
-        } else if arg.path.is_ident("write_ctx") {
-            attributes.write_ctx = Some(arg.value);
+        if arg.path.is_ident("ctx") {
+            attributes.ctx = Some(arg.value);
         } else {
             return Err(syn::Error::new(arg.path.span(), "unknown attribute"));
         }

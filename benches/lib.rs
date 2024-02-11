@@ -147,7 +147,7 @@ impl<'a, Ctx: Endianess> TryWrite<Ctx> for Header<'a> {
         let offset = &mut 0;
 
         bytes.write_with(offset, &(self.name.len() as u16), endian)?;
-        bytes.write(offset, self.name)?;
+        bytes.write_with(offset, self.name, ())?;
         bytes.write(offset, &self.enabled)?;
 
         Ok(*offset)

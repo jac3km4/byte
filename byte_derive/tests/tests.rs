@@ -1,5 +1,5 @@
 use byte::{
-    ctx::{Delimiter, Len, NONE},
+    ctx::{Delimiter, Len},
     Measure, TryRead, TryWrite, LE,
 };
 
@@ -7,7 +7,7 @@ use byte::{
 struct Named<'a> {
     id: u32,
     timestamp: f64,
-    #[byte(read_ctx = Delimiter(0), write_ctx = NONE)]
+    #[byte(ctx = Delimiter(0))]
     str: &'a str,
 }
 
@@ -20,7 +20,7 @@ fn test_named_struct() {
     };
     let buf = &mut [0; 18];
     data.try_write(buf, LE).unwrap();
-    assert_eq!(data.measure(LE), 17);
+    assert_eq!(data.measure(LE), 18);
     assert_eq!(Ok((data, 18)), Named::try_read(buf, LE));
 }
 
@@ -45,7 +45,7 @@ fn test_no_lifetime_struct() {
 #[derive(Debug, Clone, PartialEq, TryWrite, TryRead)]
 struct FieldDependent<'a> {
     len: usize,
-    #[byte(read_ctx = Len(len), write_ctx = NONE)]
+    #[byte(ctx = Len(*len))]
     str: &'a str,
 }
 
@@ -64,11 +64,7 @@ fn test_len_dependent() {
 }
 
 #[derive(Debug, Clone, PartialEq, TryRead, TryWrite)]
-struct Tuple<'a>(
-    u32,
-    f64,
-    #[byte(read_ctx = Delimiter(0), write_ctx = NONE)] &'a str,
-);
+struct Tuple<'a>(u32, f64, #[byte(ctx = Delimiter(0))] &'a str);
 
 #[test]
 fn test_tuple_struct() {

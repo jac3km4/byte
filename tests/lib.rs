@@ -113,12 +113,12 @@ fn test_str_delimitor() {
 fn test_str_write() {
     let mut bytes = [0; 20];
     let mut offset = 0;
-    bytes.write(&mut offset, "hello world!").unwrap();
+    bytes.write_with(&mut offset, "hello world!", ()).unwrap();
     assert_eq!(offset, 12);
     assert_eq!(&bytes[..offset], b"hello world!" as &[u8]);
 
     let bytes = &mut [0; 10];
-    assert!(bytes.write(&mut 0, "hello world!").is_err());
+    assert!(bytes.write_with(&mut 0, "hello world!", ()).is_err());
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn test_bytes() {
     assert_eq!(TryWrite::try_write(bytes, &mut write, ()).unwrap(), 4);
     assert_eq!(&write[..4], bytes);
 
-    assert!([0u8; 3].write(&mut 0, bytes).is_err());
+    assert!([0u8; 3].write_with(&mut 0, bytes, ()).is_err());
 }
 
 #[test]
@@ -204,15 +204,15 @@ fn test_bytes_pattern() {
 #[test]
 #[cfg(feature = "alloc")]
 fn test_into_bytes() {
-    assert_eq!("hello world".into_bytes(), Ok(b"hello world".to_vec()));
-    assert_eq!(0xFFu32.into_bytes_with(LE), Ok(vec![0xFF, 0, 0, 0]));
-    assert_eq!(0xFFu32.into_bytes_with(BE), Ok(vec![0, 0, 0, 0xFF]));
+    assert_eq!("hello world".to_bytes_with(()), Ok(b"hello world".to_vec()));
+    assert_eq!(0xFFu32.to_bytes_with(LE), Ok(vec![0xFF, 0, 0, 0]));
+    assert_eq!(0xFFu32.to_bytes_with(BE), Ok(vec![0, 0, 0, 0xFF]));
 
     let header = Header {
         name: "hello world",
         enabled: true,
     };
-    let encoded = header.into_bytes_with(BE).unwrap();
+    let encoded = header.to_bytes_with(BE).unwrap();
     let decoded = encoded.read_with::<Header>(&mut 0, BE);
     assert_eq!(Ok(header), decoded);
 }
@@ -290,7 +290,7 @@ struct Header<'a> {
     enabled: bool,
 }
 
-impl<Ctx> Measure<Ctx> for &Header<'_> {
+impl<Ctx> Measure<Ctx> for Header<'_> {
     fn measure(&self, _: Ctx) -> usize {
         2 + self.name.len() + 1
     }
@@ -315,7 +315,7 @@ impl<'a, Ctx: Endianess> TryWrite<Ctx> for Header<'a> {
         let offset = &mut 0;
 
         bytes.write_with(offset, &(self.name.len() as u16), endian)?;
-        bytes.write(offset, self.name)?;
+        bytes.write_with(offset, self.name, ())?;
         bytes.write(offset, &self.enabled)?;
 
         Ok(*offset)

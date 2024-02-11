@@ -1,4 +1,4 @@
-use crate::{check_len, Error, Result, TryRead, TryWrite};
+use crate::{check_len, Error, Measure, Result, TryRead, TryWrite};
 
 use super::{Len, Pattern, PatternUntil};
 
@@ -59,9 +59,59 @@ impl TryWrite for [u8] {
     #[inline]
     fn try_write(&self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
         check_len(bytes, self.len())?;
-
         bytes[..self.len()].copy_from_slice(self);
-
         Ok(self.len())
+    }
+}
+
+impl TryWrite<Len> for [u8] {
+    #[inline]
+    fn try_write(&self, bytes: &mut [u8], Len(len): Len) -> Result<usize> {
+        let len = len.min(self.len());
+        check_len(bytes, len)?;
+        bytes[..len].copy_from_slice(&self[..len]);
+        Ok(len)
+    }
+}
+
+impl TryWrite<Pattern> for [u8] {
+    #[inline]
+    fn try_write(&self, bytes: &mut [u8], _: Pattern) -> Result<usize> {
+        self.try_write(bytes, ())
+    }
+}
+
+impl TryWrite<PatternUntil> for [u8] {
+    #[inline]
+    fn try_write(&self, bytes: &mut [u8], PatternUntil(_, len): PatternUntil) -> Result<usize> {
+        self.try_write(bytes, Len(len))
+    }
+}
+
+impl Measure for [u8] {
+    #[inline]
+    fn measure(&self, _: ()) -> usize {
+        self.len()
+    }
+}
+
+impl Measure<Len> for [u8] {
+    #[inline]
+    fn measure(&self, Len(len): Len) -> usize {
+        len.min(self.len())
+    }
+}
+
+impl Measure<Pattern> for [u8] {
+    #[inline]
+    fn measure(&self, _: Pattern) -> usize {
+        self.len()
+    }
+}
+
+impl Measure<PatternUntil> for [u8] {
+    #[inline]
+    fn measure(&self, PatternUntil(_, len): PatternUntil) -> usize {
+        len.min(self.len())
     }
 }

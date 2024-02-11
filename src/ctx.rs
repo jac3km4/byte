@@ -8,9 +8,6 @@ mod str;
 pub use self::num::*;
 pub use self::str::*;
 
-/// No context.
-pub const NONE: () = ();
-
 /// Context that provides a fixed length for a slice.
 ///
 /// # Example

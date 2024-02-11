@@ -12,13 +12,6 @@ pub const RET: u8 = 0x0a;
 /// Tab string delimiter
 pub const TAB: u8 = 0x09;
 
-impl Measure for &str {
-    #[inline]
-    fn measure(&self, _: ()) -> usize {
-        self.len()
-    }
-}
-
 impl<'a> TryRead<'a, Len> for &'a str {
     #[inline]
     fn try_read(bytes: &'a [u8], Len(len): Len) -> Result<(Self, usize)> {
@@ -78,13 +71,53 @@ impl<'a> TryRead<'a, DelimiterUntil> for &'a str {
 
 impl TryWrite for str {
     #[inline]
-    fn try_write(&self, bytes: &mut [u8], _ctx: ()) -> Result<usize> {
+    fn try_write(&self, bytes: &mut [u8], _: ()) -> Result<usize> {
+        self.as_bytes().try_write(bytes, ())
+    }
+}
+
+impl TryWrite<Len> for str {
+    #[inline]
+    fn try_write(&self, bytes: &mut [u8], len: Len) -> Result<usize> {
+        self.as_bytes().try_write(bytes, len)
+    }
+}
+
+impl TryWrite<Delimiter> for str {
+    #[inline]
+    fn try_write(&self, bytes: &mut [u8], Delimiter(delim): Delimiter) -> Result<usize> {
         let str_bytes = self.as_bytes();
-
-        check_len(bytes, str_bytes.len())?;
-
+        check_len(bytes, str_bytes.len() + 1)?;
         bytes[..str_bytes.len()].copy_from_slice(str_bytes);
+        bytes[str_bytes.len()] = delim;
+        Ok(str_bytes.len() + 1)
+    }
+}
 
-        Ok(str_bytes.len())
+impl Measure<()> for &str {
+    #[inline]
+    fn measure(&self, _: ()) -> usize {
+        self.len()
+    }
+}
+
+impl Measure<Delimiter> for &str {
+    #[inline]
+    fn measure(&self, _: Delimiter) -> usize {
+        self.len() + 1
+    }
+}
+
+impl Measure<Len> for &str {
+    #[inline]
+    fn measure(&self, Len(len): Len) -> usize {
+        self.len().min(len)
+    }
+}
+
+impl Measure<DelimiterUntil> for &str {
+    #[inline]
+    fn measure(&self, DelimiterUntil(_, len): DelimiterUntil) -> usize {
+        (self.len() + 1).min(len)
     }
 }
