@@ -335,6 +335,16 @@ pub trait Measure<Ctx = ()> {
     fn measure(&self, ctx: Ctx) -> usize;
 }
 
+impl<A, Ctx> Measure<Ctx> for &A
+where
+    A: Measure<Ctx> + ?Sized,
+{
+    #[inline]
+    fn measure(&self, ctx: Ctx) -> usize {
+        (*self).measure(ctx)
+    }
+}
+
 #[cfg(feature = "alloc")]
 impl<A, Ctx> Measure<Ctx> for Cow<'_, A>
 where
