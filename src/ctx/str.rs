@@ -94,28 +94,28 @@ impl TryWrite<Delimiter> for str {
     }
 }
 
-impl Measure for &str {
+impl Measure for str {
     #[inline]
     fn measure(&self, _: ()) -> usize {
         self.len()
     }
 }
 
-impl Measure<Delimiter> for &str {
+impl Measure<Delimiter> for str {
     #[inline]
     fn measure(&self, _: Delimiter) -> usize {
         self.len() + 1
     }
 }
 
-impl Measure<Len> for &str {
+impl Measure<Len> for str {
     #[inline]
     fn measure(&self, Len(len): Len) -> usize {
         self.len().min(len)
     }
 }
 
-impl Measure<DelimiterUntil> for &str {
+impl Measure<DelimiterUntil> for str {
     #[inline]
     fn measure(&self, DelimiterUntil(_, len): DelimiterUntil) -> usize {
         (self.len() + 1).min(len)
