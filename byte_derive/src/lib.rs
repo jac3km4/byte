@@ -328,7 +328,7 @@ fn impl_data_measure(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
     Ok(quote::quote! {
         impl #impl_generics ::byte::Measure<__Ctx> for #name #ty_generics
             where
-                __Ctx: ::byte::ctx::Endianess,
+                __Ctx: ::std::marker::Copy,
                 #( #constraints, )*
                 #predicates {
             fn measure(&self, ctx: __Ctx) -> usize {
