@@ -229,11 +229,11 @@ fn test_iter() {
     let bytes: &[u8] = b"hello\0world\0dead\0beef\0more";
     let mut offset = 0;
     {
-        let mut iter = bytes.read_iter(&mut offset, Delimiter(NULL));
-        assert_eq!(iter.next(), Some("hello"));
-        assert_eq!(iter.next(), Some("world"));
-        assert_eq!(iter.next(), Some("dead"));
-        assert_eq!(iter.next(), Some("beef"));
+        let mut iter = bytes.read_iter(&mut offset, Delimiter(NULL)).take(4);
+        assert_eq!(iter.next(), Some(Ok("hello")));
+        assert_eq!(iter.next(), Some(Ok("world")));
+        assert_eq!(iter.next(), Some(Ok("dead")));
+        assert_eq!(iter.next(), Some(Ok("beef")));
         assert_eq!(iter.next(), None);
     }
     assert_eq!(offset, 22);

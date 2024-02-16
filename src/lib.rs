@@ -415,11 +415,11 @@ pub trait BytesExt<Ctx> {
     /// let bytes: &[u8] = b"hello\0world\0dead\0beef\0more";
     /// let mut offset = 0;
     /// {
-    ///     let mut iter = bytes.read_iter(&mut offset, Delimiter(NULL));
-    ///     assert_eq!(iter.next(), Some("hello"));
-    ///     assert_eq!(iter.next(), Some("world"));
-    ///     assert_eq!(iter.next(), Some("dead"));
-    ///     assert_eq!(iter.next(), Some("beef"));
+    ///     let mut iter = bytes.read_iter(&mut offset, Delimiter(NULL)).take(4);
+    ///     assert_eq!(iter.next(), Some(Ok("hello")));
+    ///     assert_eq!(iter.next(), Some(Ok("world")));
+    ///     assert_eq!(iter.next(), Some(Ok("dead")));
+    ///     assert_eq!(iter.next(), Some(Ok("beef")));
     ///     assert_eq!(iter.next(), None);
     /// }
     /// assert_eq!(offset, 22);
@@ -555,11 +555,11 @@ where
 /// let bytes: &[u8] = b"hello\0world\0dead\0beef\0more";
 /// let mut offset = 0;
 /// {
-///     let mut iter = bytes.read_iter(&mut offset, Delimiter(NULL));
-///     assert_eq!(iter.next(), Some("hello"));
-///     assert_eq!(iter.next(), Some("world"));
-///     assert_eq!(iter.next(), Some("dead"));
-///     assert_eq!(iter.next(), Some("beef"));
+///     let mut iter = bytes.read_iter(&mut offset, Delimiter(NULL)).take(4);
+///     assert_eq!(iter.next(), Some(Ok("hello")));
+///     assert_eq!(iter.next(), Some(Ok("world")));
+///     assert_eq!(iter.next(), Some(Ok("dead")));
+///     assert_eq!(iter.next(), Some(Ok("beef")));
 ///     assert_eq!(iter.next(), None);
 /// }
 /// assert_eq!(offset, 22);
@@ -581,16 +581,17 @@ where
     T: TryRead<'a, Ctx>,
     Ctx: Clone,
 {
-    type Item = T;
+    type Item = Result<T>;
 
     #[inline]
-    fn next(&mut self) -> Option<T> {
-        TryRead::try_read(&self.bytes[*self.offset..], self.ctx.clone())
-            .ok()
-            .map(|(t, size)| {
+    fn next(&mut self) -> Option<Result<T>> {
+        match TryRead::try_read(&self.bytes[*self.offset..], self.ctx.clone()) {
+            Ok((t, size)) => {
                 *self.offset += size;
-                t
-            })
+                Some(Ok(t))
+            }
+            Err(err) => Some(Err(err)),
+        }
     }
 
     #[inline]
