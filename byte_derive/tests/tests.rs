@@ -4,6 +4,38 @@ use byte::{
 };
 
 #[derive(Debug, Clone, PartialEq, TryWrite, TryRead, Measure)]
+#[byte(tag_type = u8)]
+enum Enum {
+    #[byte(tag = 0x1)]
+    A(u32, f64),
+    #[byte(tag = 0x2)]
+    B(u32),
+    #[byte(tag = 0x3)]
+    C,
+}
+
+#[test]
+fn test_enum() {
+    let data = Enum::A(0x12345678, 1234.5678);
+    let buf = &mut [0; 13];
+    data.try_write(buf, LE).unwrap();
+    assert_eq!(data.measure(LE), 13);
+    assert_eq!(Ok((data, 13)), Enum::try_read(buf, LE));
+
+    let data = Enum::B(0x12345678);
+    let buf = &mut [0; 5];
+    data.try_write(buf, LE).unwrap();
+    assert_eq!(data.measure(LE), 5);
+    assert_eq!(Ok((data, 5)), Enum::try_read(buf, LE));
+
+    let data = Enum::C;
+    let buf = &mut [0; 1];
+    data.try_write(buf, LE).unwrap();
+    assert_eq!(data.measure(LE), 1);
+    assert_eq!(Ok((data, 1)), Enum::try_read(buf, LE));
+}
+
+#[derive(Debug, Clone, PartialEq, TryWrite, TryRead, Measure)]
 struct Named<'a> {
     id: u32,
     timestamp: f64,
