@@ -57,21 +57,21 @@ fn test_named_struct() {
 }
 
 #[derive(Debug, Clone, PartialEq, TryWrite, TryRead, Measure)]
-struct NoLifetime {
-    id: u32,
+struct TypeArg<A> {
+    id: A,
     timestamp: f64,
 }
 
 #[test]
 fn test_no_lifetime_struct() {
-    let data = NoLifetime {
+    let data = TypeArg {
         id: 0x12345678,
         timestamp: 1234.5678,
     };
     let buf = &mut [0; 12];
     data.try_write(buf, LE).unwrap();
     assert_eq!(data.measure(LE), 12);
-    assert_eq!(Ok((data, 12)), NoLifetime::try_read(buf, LE));
+    assert_eq!(Ok((data, 12)), TypeArg::try_read(buf, LE));
 }
 
 #[derive(Debug, Clone, PartialEq, TryWrite, TryRead)]

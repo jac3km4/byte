@@ -68,10 +68,15 @@ fn impl_data_read(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenStre
     };
 
     let predicates = where_clause.map(|w| &w.predicates);
+    let constraints = generic_constraints(
+        &input.generics,
+        quote::quote!(::byte::TryRead<#input_lt, __Ctx>),
+    );
     Ok(quote::quote! {
         impl #impl_generics ::byte::TryRead<#input_lt, __Ctx> for #name #ty_generics
             where
                 __Ctx: ::byte::ctx::Endianess,
+                #( #constraints, )*
                 #predicates {
             fn try_read(bytes: & #input_lt [u8], ctx: __Ctx) -> ::byte::Result<(Self, usize)> {
                 let __offset = &mut 0;
@@ -202,10 +207,12 @@ fn impl_data_write(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenStr
         }
     };
     let predicates = where_clause.map(|w| &w.predicates);
+    let constraints = generic_constraints(&input.generics, quote::quote!(::byte::TryWrite<__Ctx>));
     Ok(quote::quote! {
         impl #impl_generics ::byte::TryWrite<__Ctx> for #name #ty_generics
             where
                 __Ctx: ::byte::ctx::Endianess,
+                #( #constraints, )*
                 #predicates {
             fn try_write(&self, bytes: &mut [u8], ctx: __Ctx) -> ::byte::Result<usize> {
                 let __offset = &mut 0;
@@ -317,10 +324,12 @@ fn impl_data_measure(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
     };
 
     let predicates = where_clause.map(|w| &w.predicates);
+    let constraints = generic_constraints(&input.generics, quote::quote!(::byte::Measure<__Ctx>));
     Ok(quote::quote! {
         impl #impl_generics ::byte::Measure<__Ctx> for #name #ty_generics
             where
                 __Ctx: ::byte::ctx::Endianess,
+                #( #constraints, )*
                 #predicates {
             fn measure(&self, ctx: __Ctx) -> usize {
                 #body
@@ -408,6 +417,16 @@ fn generics_with_ctx(generics: &syn::Generics) -> syn::Generics {
             syn::Ident::new("__Ctx", generics.span()),
         )));
     generics
+}
+
+fn generic_constraints(
+    generics: &syn::Generics,
+    constraint: proc_macro2::TokenStream,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + '_ {
+    generics.type_params().map(move |p| {
+        let ident = &p.ident;
+        quote::quote!(#ident: #constraint)
+    })
 }
 
 #[derive(Default)]
