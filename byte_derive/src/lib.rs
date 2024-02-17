@@ -78,6 +78,8 @@ fn impl_data_read(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 __Ctx: ::byte::ctx::Endianess,
                 #( #constraints, )*
                 #predicates {
+
+            #[allow(unused_variables)]
             fn try_read(bytes: & #input_lt [u8], ctx: __Ctx) -> ::byte::Result<(Self, usize)> {
                 let __offset = &mut 0;
                 let result = #body;
@@ -128,7 +130,6 @@ fn impl_read_fields(
             };
             quote::quote! {
                 let #owned_name: #ty = #read;
-                #[allow(unused_variables)]
                 let #borrowed_name: &#ty = &#owned_name;
             }
         });
@@ -213,6 +214,8 @@ fn impl_data_write(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenStr
                 __Ctx: ::byte::ctx::Endianess,
                 #( #constraints, )*
                 #predicates {
+
+            #[allow(unused_variables)]
             fn try_write(&self, bytes: &mut [u8], ctx: __Ctx) -> ::byte::Result<usize> {
                 let __offset = &mut 0;
                 #body
@@ -331,6 +334,8 @@ fn impl_data_measure(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
                 __Ctx: ::std::marker::Copy,
                 #( #constraints, )*
                 #predicates {
+
+            #[allow(unused_variables)]
             fn measure(&self, ctx: __Ctx) -> usize {
                 #body
             }
