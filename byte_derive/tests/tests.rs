@@ -100,6 +100,8 @@ struct Skipped {
     bool: bool,
     #[byte(skip_if = *bool)]
     other: u32,
+    #[byte(skip)]
+    unused: u32,
 }
 
 #[test]
@@ -107,6 +109,7 @@ fn test_skipped() {
     let data = Skipped {
         bool: true,
         other: 0x12345678,
+        unused: 0x12345678,
     };
     let buf = &mut [0; 5];
     data.try_write(buf, LE).unwrap();
@@ -114,7 +117,8 @@ fn test_skipped() {
         Ok((
             Skipped {
                 bool: true,
-                other: 0
+                other: 0,
+                unused: 0
             },
             1
         )),
@@ -127,6 +131,7 @@ fn test_not_skipped() {
     let data = Skipped {
         bool: false,
         other: 0x12345678,
+        unused: 0x12345678,
     };
     let buf = &mut [0; 5];
     data.try_write(buf, LE).unwrap();
@@ -134,7 +139,8 @@ fn test_not_skipped() {
         Ok((
             Skipped {
                 bool: false,
-                other: 0x12345678
+                other: 0x12345678,
+                unused: 0
             },
             5
         )),

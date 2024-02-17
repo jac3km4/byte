@@ -113,19 +113,18 @@ fn impl_read_fields(
                 .ctx
                 .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
             let ty = &field.ty;
-            let read = match attrs.skip_if {
-                Some(skip_if) => {
-                    quote::quote! {
-                        if #skip_if {
-                            <#ty>::default()
-                        } else {
-                            ::byte::BytesExt::read(bytes, __offset, #ctx)?
-                        }
+            let read = if attrs.skip {
+                quote::quote!(<#ty>::default())
+            } else if let Some(skip_if) = attrs.skip_if {
+                quote::quote! {
+                    if #skip_if {
+                        <#ty>::default()
+                    } else {
+                        ::byte::BytesExt::read::<#ty>(bytes, __offset, #ctx)?
                     }
                 }
-                None => {
-                    quote::quote!(::byte::BytesExt::read(bytes, __offset, #ctx)?)
-                }
+            } else {
+                quote::quote!(::byte::BytesExt::read::<#ty>(bytes, __offset, #ctx)?)
             };
             quote::quote! {
                 let #owned_name: #ty = #read;
@@ -243,15 +242,16 @@ fn impl_write_fields(
         let ctx = attrs
             .ctx
             .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-        match attrs.skip_if {
-            Some(skip_if) => {
-                quote::quote! {
-                    if !#skip_if {
-                        ::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;
-                    }
+        if attrs.skip {
+            quote::quote! {}
+        } else if let Some(skip_if) = attrs.skip_if {
+            quote::quote! {
+                if !#skip_if {
+                    ::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;
                 }
             }
-            None => quote::quote!(::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;),
+        } else {
+            quote::quote!(::byte::BytesExt::write(bytes, __offset, #name, #ctx)?;)
         }
     });
 
@@ -358,17 +358,19 @@ fn impl_measure_fields(
         let ctx = attrs
             .ctx
             .map_or_else(|| quote::quote!(ctx), |ctx| quote::quote!(#ctx));
-        match attrs.skip_if {
-            Some(skip_if) => {
-                quote::quote! {
-                    if !#skip_if {
-                        ::byte::Measure::measure(#name, #ctx)
-                    } else {
-                        0
-                    }
+
+        if attrs.skip {
+            quote::quote!(0)
+        } else if let Some(skip_if) = attrs.skip_if {
+            quote::quote! {
+                if !#skip_if {
+                    ::byte::Measure::measure(#name, #ctx)
+                } else {
+                    0
                 }
             }
-            None => quote::quote!(::byte::Measure::measure(#name, #ctx)),
+        } else {
+            quote::quote!(::byte::Measure::measure(#name, #ctx))
         }
     });
 
@@ -433,6 +435,7 @@ fn generic_constraints(
 struct FieldAttributes {
     ctx: Option<syn::Expr>,
     skip_if: Option<syn::Expr>,
+    skip: bool,
 }
 
 impl FieldAttributes {
@@ -440,16 +443,22 @@ impl FieldAttributes {
         let mut attributes = FieldAttributes {
             ctx: None,
             skip_if: None,
+            skip: false,
         };
 
         for arg in parse_attributes(attrs) {
             let arg = arg?;
-            if arg.path.is_ident("ctx") {
-                attributes.ctx = Some(arg.value);
-            } else if arg.path.is_ident("skip_if") {
-                attributes.skip_if = Some(arg.value);
-            } else {
-                return Err(syn::Error::new(arg.path.span(), "unknown attribute"));
+            match arg {
+                syn::Meta::NameValue(kv) if kv.path.is_ident("ctx") => {
+                    attributes.ctx = Some(kv.value);
+                }
+                syn::Meta::NameValue(kv) if kv.path.is_ident("skip_if") => {
+                    attributes.skip_if = Some(kv.value);
+                }
+                syn::Meta::Path(path) if path.is_ident("skip") => {
+                    attributes.skip = true;
+                }
+                _ => return Err(syn::Error::new(arg.span(), "unknown attribute")),
             }
         }
 
@@ -468,14 +477,15 @@ impl ContainerAttributes {
 
         for arg in parse_attributes(attrs) {
             let arg = arg?;
-            if arg.path.is_ident("tag_type") {
-                if let syn::Expr::Path(path) = &arg.value {
-                    attributes.tag_type = Some(path.path.clone());
-                } else {
-                    return Err(syn::Error::new(arg.value.span(), "tag_type must be a type"));
+            match arg {
+                syn::Meta::NameValue(kv) if kv.path.is_ident("tag_type") => {
+                    if let syn::Expr::Path(path) = &kv.value {
+                        attributes.tag_type = Some(path.path.clone());
+                    } else {
+                        return Err(syn::Error::new(kv.value.span(), "tag_type must be a type"));
+                    }
                 }
-            } else {
-                return Err(syn::Error::new(arg.path.span(), "unknown attribute"));
+                _ => return Err(syn::Error::new(arg.span(), "unknown attribute")),
             }
         }
 
@@ -494,10 +504,11 @@ impl VariantAttributes {
 
         for arg in parse_attributes(attrs) {
             let arg = arg?;
-            if arg.path.is_ident("tag") {
-                attributes.tag = Some(arg.value);
-            } else {
-                return Err(syn::Error::new(arg.path.span(), "unknown attribute"));
+            match arg {
+                syn::Meta::NameValue(kv) if kv.path.is_ident("tag") => {
+                    attributes.tag = Some(kv.value);
+                }
+                _ => return Err(syn::Error::new(arg.span(), "unknown attribute")),
             }
         }
 
@@ -505,14 +516,12 @@ impl VariantAttributes {
     }
 }
 
-fn parse_attributes(
-    attrs: &[syn::Attribute],
-) -> impl Iterator<Item = syn::Result<syn::MetaNameValue>> + '_ {
+fn parse_attributes(attrs: &[syn::Attribute]) -> impl Iterator<Item = syn::Result<syn::Meta>> + '_ {
     attrs
         .iter()
         .filter(|attr| attr.path().is_ident("byte"))
         .flat_map(move |arg| {
-            let parser = Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated;
+            let parser = Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated;
             match arg
                 .meta
                 .require_list()
