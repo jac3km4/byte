@@ -234,6 +234,18 @@ where
     }
 }
 
+#[cfg(feature = "alloc")]
+impl<'a, A, Ctx> TryRead<'a, Ctx> for alloc::boxed::Box<A>
+where
+    A: TryRead<'a, Ctx> + ?Sized,
+{
+    #[inline]
+    fn try_read(bytes: &'a [u8], ctx: Ctx) -> Result<(Self, usize)> {
+        let (value, size) = A::try_read(bytes, ctx)?;
+        Ok((alloc::boxed::Box::new(value), size))
+    }
+}
+
 impl<'a, A, Ctx, const N: usize> TryRead<'a, Ctx> for [A; N]
 where
     A: TryRead<'a, Ctx> + Default,
@@ -300,6 +312,17 @@ where
     }
 }
 
+#[cfg(feature = "alloc")]
+impl<A, Ctx> TryWrite<Ctx> for alloc::boxed::Box<A>
+where
+    A: TryWrite<Ctx> + ?Sized,
+{
+    #[inline]
+    fn try_write(&self, bytes: &mut [u8], ctx: Ctx) -> Result<usize> {
+        self.as_ref().try_write(bytes, ctx)
+    }
+}
+
 impl<A, Ctx, const N: usize> TryWrite<Ctx> for [A; N]
 where
     A: TryWrite<Ctx>,
@@ -349,6 +372,17 @@ where
 impl<A, Ctx> Measure<Ctx> for Cow<'_, A>
 where
     A: Clone + Measure<Ctx> + ?Sized,
+{
+    #[inline]
+    fn measure(&self, ctx: Ctx) -> usize {
+        self.as_ref().measure(ctx)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<A, Ctx> Measure<Ctx> for alloc::boxed::Box<A>
+where
+    A: Measure<Ctx> + ?Sized,
 {
     #[inline]
     fn measure(&self, ctx: Ctx) -> usize {
