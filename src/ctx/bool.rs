@@ -14,7 +14,7 @@ impl<Ctx> TryWrite<Ctx> for bool {
     fn try_write(&self, bytes: &mut [u8], _ctx: Ctx) -> Result<usize> {
         check_len(bytes, 1)?;
 
-        bytes[0] = if *self { u8::max_value() } else { 0 };
+        bytes[0] = if *self { u8::MAX } else { 0 };
 
         Ok(1)
     }

@@ -151,7 +151,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 /// - `Error::BadOffset` will be returned when the offset parameter exceeds the slice's length.
 ///
 /// - `Error::BadInput` and `Error::Incomplete` will be returned when `try_read()` or
-/// `try_write()` finds the bytes are invalid or not long enough to determine their validity.
+///   `try_write()` finds the bytes are invalid or not long enough to determine their validity.
 ///
 /// Note that we usually use `bytes.read()` in `try_read()` which may return `Error::BadOffset`,
 /// indicating incomplete data. So the error will automatically be converted into
@@ -622,7 +622,7 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<'a, 'i, T, Ctx> Iterator for Iter<'a, 'i, T, Ctx>
+impl<'a, T, Ctx> Iterator for Iter<'a, '_, T, Ctx>
 where
     T: TryRead<'a, Ctx>,
     Ctx: Clone,

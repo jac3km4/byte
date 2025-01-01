@@ -69,7 +69,6 @@ pub struct PatternUntil(pub &'static [u8], pub usize);
 /// use byte::ctx::*;
 ///
 /// let bytes: &[u8] = b"hello, world!\0";
-
 /// let str: &str = bytes.read(&mut 0, Delimiter(b"!"[0])).unwrap();
 /// assert_eq!(str, "hello, world");
 /// ```
@@ -85,7 +84,6 @@ pub struct Delimiter(pub u8);
 /// use byte::ctx::*;
 ///
 /// let bytes: &[u8] = b"hello, world!\0";
-
 /// let str: &str = bytes.read(&mut 0, DelimiterUntil(NULL, 5)).unwrap();
 /// assert_eq!(str, "hello");
 /// ```
