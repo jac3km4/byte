@@ -137,7 +137,7 @@ pub mod ctx;
 use alloc::borrow::Cow;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
-use core::marker::PhantomData;
+use core::{error, fmt, marker::PhantomData};
 pub use ctx::{BE, LE};
 
 #[cfg(feature = "derive")]
@@ -165,6 +165,18 @@ pub enum Error {
     /// The requested data content is invalid
     BadInput { err: &'static str },
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Incomplete => write!(f, "incomplete data"),
+            Error::BadOffset(offset) => write!(f, "bad offset: {}", offset),
+            Error::BadInput { err } => write!(f, "bad input: {}", err),
+        }
+    }
+}
+
+impl error::Error for Error {}
 
 /// A helper function that checks whether the given length exceeded the length
 /// of the slice; returns `Err(Error::Incomplete)` otherwise.
